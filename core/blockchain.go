@@ -641,7 +641,7 @@ func NewBlockChain(db ethdb.Database, genesis *Genesis, engine consensus.Engine,
 		bc.txIndexer = newTxIndexer(uint64(bc.cfg.TxLookupLimit), bc)
 	}
 
-	go bc.printStateSyncDetails()
+	// go bc.printStateSyncDetails()
 
 	// Start header verification loop
 	bc.startHeaderVerificationLoop()
