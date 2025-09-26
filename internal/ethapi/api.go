@@ -756,9 +756,11 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
 
 	stateSyncReceipt, err := api.b.GetBorBlockReceipt(ctx, block.Hash())
 	if err != nil && err != ethereum.NotFound {
+		log.Info("[debug] GetBorBlockReceipt error", "err", err)
 		return nil, err
 	}
 	if stateSyncReceipt != nil {
+		log.Info("[debug] found state-sync receipt")
 		tx, _, _, _ := rawdb.ReadBorTransaction(api.b.ChainDb(), stateSyncReceipt.TxHash)
 		result = append(result, marshalReceipt(stateSyncReceipt, block.Hash(), block.NumberU64(), signer, tx, len(result), true))
 	}

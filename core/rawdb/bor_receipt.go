@@ -96,6 +96,7 @@ func ReadBorReceipt(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	borReceipt := ReadRawBorReceipt(db, hash, number)
 	if borReceipt == nil {
+		log.Info("[debug] nil bor receipt found", "number", number, "hash", hash)
 		return nil
 	}
 
@@ -115,6 +116,8 @@ func ReadBorReceipt(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 		log.Error("Failed to derive bor receipt fields", "hash", hash, "number", number, "err", err)
 		return nil
 	}
+
+	log.Info("[debug] found correct bor receipt", "number", number, "hash", hash)
 
 	return borReceipt
 }
