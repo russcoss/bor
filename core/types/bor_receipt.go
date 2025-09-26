@@ -15,7 +15,7 @@ import (
 const TenToTheFive uint64 = 100000
 
 var (
-	borReceiptPrefix = []byte("matic-bor-receipt-") // borReceiptPrefix + number + block hash -> bor block receipt
+	borReceiptPrefix = []byte("bor-receipt-") // borReceiptPrefix + number + block hash -> bor block receipt
 
 	// SystemAddress address for system sender
 	SystemAddress = common.HexToAddress("0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE")
