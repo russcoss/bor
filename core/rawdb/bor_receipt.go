@@ -104,9 +104,9 @@ func ReadBorReceipt(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	receipts := ReadRawReceipts(db, hash, number)
-	if receipts == nil {
-		return nil
-	}
+	// if receipts == nil {
+	// 	return nil
+	// }
 	log.Info("[debug] read raw normal receipts for same block")
 
 	body := ReadBody(db, hash, number)
