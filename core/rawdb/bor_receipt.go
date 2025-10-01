@@ -20,10 +20,10 @@ var (
 )
 
 const (
-	borTxLookupPrefixStr = "bor-tx-lookup-"
+	borTxLookupPrefixStr = "matic-bor-tx-lookup-"
 
 	// freezerBorReceiptTable indicates the name of the freezer bor receipts table.
-	freezerBorReceiptTable = "bor-receipts"
+	freezerBorReceiptTable = "matic-bor-receipts"
 )
 
 // borTxLookupKey = borTxLookupPrefix + bor tx hash
