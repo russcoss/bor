@@ -401,6 +401,7 @@ type BlockChain struct {
 
 	// Bor related changes
 	borReceiptsCache    *lru.Cache[common.Hash, *types.Receipt] // Cache for the most recent bor receipt receipts per block
+	stateSyncMu         sync.RWMutex                            // Mutex to protect the stateSyncData access
 	borReceiptsRLPCache *lru.Cache[common.Hash, rlp.RawValue]   // Cache for the most recent bor receipt RLPs per block
 	stateSyncData       []*types.StateSyncData                  // State sync data
 	stateSyncFeed       event.Feed                              // State sync feed
@@ -641,7 +642,7 @@ func NewBlockChain(db ethdb.Database, genesis *Genesis, engine consensus.Engine,
 		bc.txIndexer = newTxIndexer(uint64(bc.cfg.TxLookupLimit), bc)
 	}
 
-	// go bc.printStateSyncDetails()
+	go bc.printStateSyncDetails()
 
 	// Start header verification loop
 	bc.startHeaderVerificationLoop()
@@ -715,6 +716,10 @@ func (bc *BlockChain) ProcessBlock(block *types.Block, parent *types.Header, wit
 	if err != nil {
 		return nil, nil, 0, nil, 0, err
 	}
+	parallelStatedb, err := state.NewWithReader(parentRoot, bc.statedb, process)
+	if err != nil {
+		return nil, nil, 0, nil, 0, err
+	}
 
 	// Upload the statistics of reader at the end
 	defer func() {
@@ -771,17 +776,18 @@ func (bc *BlockChain) ProcessBlock(block *types.Block, parent *types.Header, wit
 
 		go func() {
 			pstart := time.Now()
-			res, err := bc.parallelProcessor.Process(block, statedb, bc.cfg.VmConfig, nil, ctx)
+			parallelStatedb.StartPrefetcher("chain", witness)
+			res, err := bc.parallelProcessor.Process(block, parallelStatedb, bc.cfg.VmConfig, nil, ctx)
 			blockExecutionParallelTimer.UpdateSince(pstart)
 			if err == nil {
 				vstart := time.Now()
-				err = bc.validator.ValidateState(block, statedb, res, false)
+				err = bc.validator.ValidateState(block, parallelStatedb, res, false)
 				vtime = time.Since(vstart)
 			}
 			if res == nil {
 				res = &ProcessResult{}
 			}
-			resultChan <- Result{res.Receipts, res.Logs, res.GasUsed, err, statedb, blockExecutionParallelCounter, true}
+			resultChan <- Result{res.Receipts, res.Logs, res.GasUsed, err, parallelStatedb, blockExecutionParallelCounter, true}
 		}()
 	}
 
@@ -790,6 +796,7 @@ func (bc *BlockChain) ProcessBlock(block *types.Block, parent *types.Header, wit
 
 		go func() {
 			pstart := time.Now()
+			statedb.StartPrefetcher("chain", witness)
 			res, err := bc.processor.Process(block, statedb, bc.cfg.VmConfig, nil, ctx)
 			blockExecutionSerialTimer.UpdateSince(pstart)
 			if err == nil {
@@ -1912,12 +1919,12 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		for i, block := range blockChain {
 			if bc.txIndexer == nil || bc.txIndexer.limit == 0 || ancientLimit <= bc.txIndexer.limit || block.NumberU64() >= ancientLimit-bc.txIndexer.limit {
 				rawdb.WriteTxLookupEntriesByBlock(batch, block)
-				if len(borReceipts) > 0 {
+				if len(borReceipts[i]) > 0 {
 					rawdb.WriteBorTxLookupEntry(batch, block.Hash(), block.NumberU64())
 				}
 			} else if rawdb.ReadTxIndexTail(bc.db) != nil {
 				rawdb.WriteTxLookupEntriesByBlock(batch, block)
-				if len(borReceipts) > 0 {
+				if len(borReceipts[i]) > 0 {
 					rawdb.WriteBorTxLookupEntry(batch, block.Hash(), block.NumberU64())
 				}
 			}
@@ -2372,9 +2379,11 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		if emitHeadEvent {
 			bc.chainHeadFeed.Send(ChainHeadEvent{Header: block.Header()})
 			// BOR state sync feed related changes
+			bc.stateSyncMu.RLock()
 			for _, data := range bc.stateSyncData {
 				bc.stateSyncFeed.Send(StateSyncEvent{Data: data})
 			}
+			bc.stateSyncMu.RUnlock()
 			// BOR
 		}
 	} else {
@@ -2952,9 +2961,11 @@ func (bc *BlockChain) insertChainWithWitnesses(chain types.Blocks, setHead bool,
 		}
 
 		// BOR state sync feed related changes
+		bc.stateSyncMu.RLock()
 		for _, data := range bc.stateSyncData {
 			bc.stateSyncFeed.Send(StateSyncEvent{Data: data})
 		}
+		bc.stateSyncMu.RUnlock()
 		// BOR
 		ptime := time.Since(pstart) - vtime - statedb.BorConsensusTime
 
