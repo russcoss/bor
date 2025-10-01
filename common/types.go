@@ -43,7 +43,7 @@ const (
 )
 
 // Blocks in a devnet containing state-sync transactions
-var StateSyncBlocks []uint64 = []uint64{208, 240, 272, 304, 336, 368, 384}
+var StateSyncBlocks []uint64 = []uint64{176, 192, 208, 240, 272, 304, 336, 368, 400, 416, 448, 480, 688}
 
 func IsStateSyncBlock(number uint64) bool {
 	for _, b := range StateSyncBlocks {

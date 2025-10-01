@@ -642,7 +642,7 @@ func NewBlockChain(db ethdb.Database, genesis *Genesis, engine consensus.Engine,
 		bc.txIndexer = newTxIndexer(uint64(bc.cfg.TxLookupLimit), bc)
 	}
 
-	go bc.printStateSyncDetails()
+	// go bc.printStateSyncDetails()
 
 	// Start header verification loop
 	bc.startHeaderVerificationLoop()
@@ -3042,7 +3042,7 @@ func (bc *BlockChain) insertChainWithWitnesses(chain types.Blocks, setHead bool,
 		trieDiffNodes, trieBufNodes, _ := bc.triedb.Size()
 		stats.report(chain, it.index, snapDiffItems, snapBufItems, trieDiffNodes, trieBufNodes, setHead, false)
 
-		// PrintSSDetails("[chain]", bc.db, bc.triedb.Disk())
+		PrintSSDetails("[chain]", bc.db, bc.triedb.Disk())
 		/*
 			// Print confirmation that a future fork is scheduled, but not yet active.
 			bc.logForkReadiness(block)
