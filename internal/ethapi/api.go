@@ -757,6 +757,7 @@ func (api *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rp
 
 	stateSyncReceipt, err := api.b.GetBorBlockReceipt(ctx, block.Hash())
 	if err != nil && err != ethereum.NotFound {
+		log.Info("[debug] [api] error in getting bor receipts", "err", err)
 		return nil, err
 	}
 	if stateSyncReceipt != nil {

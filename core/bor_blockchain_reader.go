@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -32,6 +33,7 @@ func (bc *BlockChain) GetBorReceiptByHash(hash common.Hash) *types.Receipt {
 	// read bor receipt by hash and number
 	receipt := rawdb.ReadBorReceipt(bc.db, hash, *number, bc.chainConfig)
 	if receipt == nil {
+		log.Info("[debug] [blockchain] nil bor receipt", "number", *number, "hash", hash)
 		return nil
 	}
 

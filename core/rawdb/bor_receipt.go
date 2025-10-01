@@ -83,24 +83,28 @@ func ReadBorReceipt(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 	if config != nil && config.Bor != nil && config.Bor.Sprint != nil && !config.Bor.IsSprintStart(number) {
 		return nil
 	}
+	log.Info("[debug] [db] config check done")
 
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	borReceipt := ReadRawBorReceipt(db, hash, number)
+	log.Info("[debug] [db] bor receipt fetched", "borReceipt", borReceipt == nil)
 	// if borReceipt == nil {
 	// 	return nil
 	// }
 
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	receipts := ReadRawReceipts(db, hash, number)
-	if receipts == nil {
-		return nil
-	}
+	// if receipts == nil {
+	// 	return nil
+	// }
+	log.Info("[debug] [db] receipts fetched", "receipts", receipts == nil)
 
 	body := ReadBody(db, hash, number)
 	if body == nil {
 		log.Error("Missing body but have bor receipt", "hash", hash, "number", number)
 		return nil
 	}
+	log.Info("[debug] [db] body fetched")
 
 	if err := types.DeriveFieldsForBorReceipt(borReceipt, hash, number, receipts); err != nil {
 		log.Error("Failed to derive bor receipt fields", "hash", hash, "number", number, "err", err)
