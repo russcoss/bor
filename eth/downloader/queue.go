@@ -90,6 +90,9 @@ func newFetchResult(header *types.Header, syncMode SyncMode, borCfg *params.BorC
 	if header.EmptyReceipts() && !isSprintEndBlock(borCfg, header.Number.Uint64()) {
 		fetchReceipts = false
 	}
+	if common.IsStateSyncBlock(header.Number.Uint64()) {
+		log.Info("[debug] new fetch result for state-sync block", "number", header.Number.Uint64(), "fetchReceipts", fetchReceipts)
+	}
 	if syncMode == SnapSync && fetchReceipts {
 		item.pending.Store(item.pending.Load() | (1 << receiptType))
 	}
@@ -409,6 +412,9 @@ func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uin
 		fetchReceipts := true
 		if header.EmptyReceipts() && !isSprintEndBlock(q.borConfig, header.Number.Uint64()) {
 			fetchReceipts = false
+		}
+		if common.IsStateSyncBlock(header.Number.Uint64()) {
+			log.Info("[debug] new fetch result for state-sync block", "number", header.Number.Uint64(), "fetchReceipts", fetchReceipts)
 		}
 		if q.mode == SnapSync && fetchReceipts {
 			if _, ok := q.receiptTaskPool[hash]; !ok {

@@ -53,6 +53,18 @@ var (
 	MaxHash = HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 )
 
+// Blocks in a devnet containing state-sync transactions
+var StateSyncBlocks []uint64 = []uint64{176, 192, 208, 240, 272, 304, 336, 368, 400, 416, 448, 480, 688}
+
+func IsStateSyncBlock(number uint64) bool {
+	for _, b := range StateSyncBlocks {
+		if b == number {
+			return true
+		}
+	}
+	return false
+}
+
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
 

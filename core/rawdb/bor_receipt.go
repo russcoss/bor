@@ -86,9 +86,9 @@ func ReadBorReceipt(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	borReceipt := ReadRawBorReceipt(db, hash, number)
-	if borReceipt == nil {
-		return nil
-	}
+	// if borReceipt == nil {
+	// 	return nil
+	// }
 
 	// We're deriving many fields from the block body, retrieve beside the receipt
 	receipts := ReadRawReceipts(db, hash, number)

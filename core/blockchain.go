@@ -173,6 +173,46 @@ const (
 	BlockChainVersion uint64 = 9
 )
 
+type StateSyncData struct {
+	number uint64
+	hash   common.Hash
+}
+
+var ss = make([]StateSyncData, 0)
+var ssMu sync.Mutex
+
+func PrintSSDetails(prefix string, db ethdb.Reader, backupDb ethdb.Reader) {
+	log.Info("[debug] db memory address", "address", fmt.Sprintf("%p", db))
+	ssMu.Lock()
+	if len(ss) > 0 {
+		log.Info("[debug] "+prefix+" trying to read state-sync events from db", "len", len(ss))
+		for _, event := range ss {
+			data := rawdb.ReadBorReceiptRLP(db, event.hash, event.number)
+			if data == nil {
+				log.Info("[debug] nil receipt in db", "number", event.number, "hash", event.hash)
+				if backupDb == nil {
+					continue
+				} else {
+					data = rawdb.ReadBorReceiptRLP(backupDb, event.hash, event.number)
+					if data == nil {
+						log.Info("[debug] nil receipt in backup db too", "number", event.number, "hash", event.hash)
+						continue
+					}
+				}
+			}
+			var storageReceipt types.ReceiptForStorage
+			if err := rlp.DecodeBytes(data, &storageReceipt); err != nil {
+				log.Error("[debug] error decoding reciept", "number", event.number, "hash", event.hash, "err", err)
+				continue
+			}
+			storageReceipt.Print()
+		}
+	}
+	ssMu.Unlock()
+	normalReceipt := rawdb.ReadReceiptsRLP(db, common.HexToHash("5252cc624b07709fa40879baeb2165e9b064c5f49ed6f22d3a60f52623f240c1"), 17)
+	log.Info("[debug] read normal receipt", "len", len(normalReceipt))
+}
+
 // BlockChainConfig contains the configuration of the BlockChain object.
 type BlockChainConfig struct {
 	// Trie database related options
@@ -1973,6 +2013,9 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			rawdb.WriteCanonicalHash(batch, block.Hash(), block.NumberU64())
 			rawdb.WriteBlock(batch, block)
 			rawdb.WriteRawReceipts(batch, block.Hash(), block.NumberU64(), receiptChain[i])
+			if len(receiptChain[i]) > 1 {
+				log.Info("[debug] written normal receipts into block", "number", block.NumberU64(), "hash", block.Hash(), "len", len(receiptChain[i]))
+			}
 
 			var borReceipt types.ReceiptForStorage
 			if len(borReceiptRaw) > 0 {
@@ -1981,9 +2024,18 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 					txIndex, logIndex := getReceiptAndLogCount(receiptChain[i])
 					types.DeriveFieldsForBorLogs(borReceipt.Logs, block.Hash(), block.NumberU64(), uint(txIndex), uint(logIndex))
 					borReceipt.Status = types.ReceiptStatusSuccessful
+					borReceipt.Print()
 
 					rawdb.WriteBorReceipt(batch, block.Hash(), block.NumberU64(), &borReceipt)
 					rawdb.WriteBorTxLookupEntry(batch, block.Hash(), block.NumberU64())
+					log.Info("[debug] written bor receipts into block", "number", block.NumberU64(), "hash", block.Hash())
+					ssMu.Lock()
+					ss = append(ss, StateSyncData{number: block.NumberU64(), hash: block.Hash()})
+					ssMu.Unlock()
+				}
+			} else {
+				if common.IsStateSyncBlock(block.NumberU64()) {
+					log.Info("[debug] state-sync block but missing state-sync receipt", "number", block.NumberU64(), "hash", block.Hash(), "len", len(receiptChain[i]))
 				}
 			}
 
@@ -2013,6 +2065,8 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		}
 
 		updateHead(blockChain[len(blockChain)-1], headers)
+
+		PrintSSDetails("[receipts]", bc.db, nil)
 
 		return 0, nil
 	}
@@ -2961,6 +3015,7 @@ func (bc *BlockChain) insertChainWithWitnesses(chain types.Blocks, setHead bool,
 		}
 		trieDiffNodes, trieBufNodes, _ := bc.triedb.Size()
 		stats.report(chain, it.index, snapDiffItems, snapBufItems, trieDiffNodes, trieBufNodes, setHead, false)
+		PrintSSDetails("[chain]", bc.db, bc.triedb.Disk())
 
 		/*
 			// Print confirmation that a future fork is scheduled, but not yet active.
